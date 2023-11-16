@@ -1,0 +1,122 @@
+<!-- todo/templates/todo/task_list_ajax.html -->
+{% extends 'base_generic.html' %}
+
+{% block content %}
+    <div class="shadow p-3 mb-5 bg-white rounded">
+    <h2 class="mt-4">Task List</h2>
+    <ul class="list-group list-group-flush">
+        {% for task in tasks %}
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="custom-checkbox">
+                        <input type="checkbox" id="task_{{ task.id }}" {% if task.completed %}checked{% endif %} data-url="{% url 'complete_task' pk=task.pk %}">
+                        <label for="task_{{ task.id }}" class="form-check-label"><span style="font-weight: bold">{{ task.title }}</span></label>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <button type="button" class="btn btn-primary btn-sm edit-task" data-url="{% url 'edit_task' pk=task.pk %}">Edit</button>
+                        <button type="button" class="btn btn-secondary btn-sm ml-2 delete-task" data-url="{% url 'delete_task' pk=task.pk %}">Delete</button>
+                    </div>
+                </div>
+                {% if task.get_descendants %}
+                    <ul class="list-group mt-2">
+                        {% for subtask in task.get_descendants %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="custom-checkbox">
+                                        <input type="checkbox" id="task_{{ subtask.id }}" {% if subtask.completed %}checked{% endif %} data-url="{% url 'complete_task' pk=subtask.pk %}">
+                                        <label for="task_{{ subtask.id }}" class="form-check-label">{{ subtask.title }}</label>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-primary btn-sm edit-task" data-url="{% url 'edit_task' pk=subtask.pk %}">Edit</button>
+                                        <button type="button" class="btn btn-secondary btn-sm ml-2 delete-task" data-url="{% url 'delete_task' pk=subtask.pk %}">Delete</button>
+                                    </div>
+                                </div>
+                                {% if subtask.get_descendants %}
+                                    <!-- Рекурсивный вызов для обработки вложенных подзадач -->
+                                    <ul class="list-group mt-2">
+                                        {% for nested_subtask in subtask.get_descendants %}
+                                            <li class="list-group-item">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div class="custom-checkbox">
+                                                        <input type="checkbox" id="task_{{ nested_subtask.id }}" {% if nested_subtask.completed %}checked{% endif %} data-url="{% url 'complete_task' pk=nested_subtask.pk %}">
+                                                        <label for="task_{{ nested_subtask.id }}" class="form-check-label">{{ nested_subtask.title }}</label>
+                                                    </div>
+                                                    <div class="d-flex align-items-center">
+                                                        <button type="button" class="btn btn-primary btn-sm edit-task" data-url="{% url 'edit_task' pk=nested_subtask.pk %}">Edit</button>
+                                                        <button type="button" class="btn btn-secondary btn-sm ml-2 delete-task" data-url="{% url 'delete_task' pk=nested_subtask.pk %}">Delete</button>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+    <div class="d-flex justify-content-end mt-3">
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addTaskModal" id="addTaskButton">Add Task</button>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal fade" id="editTaskModal" tabindex="-1" role="dialog" aria-labelledby="editTaskModalLabel" aria-hidden="true"></div>
+    <div class="modal fade" id="deleteTaskModal" tabindex="-1" role="dialog" aria-labelledby="deleteTaskModalLabel" aria-hidden="true"></div>
+
+    <!-- Add Task Modal -->
+    <div class="modal fade" id="addTaskModal" tabindex="-1" role="dialog" aria-labelledby="addTaskModalLabel" aria-hidden="true"></div>
+</div>
+{% endblock %}
+
+
+
+
+{% block extra_js %}
+    <script>
+        $(document).ready(function () {
+            // AJAX for editing a task
+            $('.edit-task').click(function () {
+                var url = $(this).data('url');
+                if (url) {
+                    $('#editTaskModal').load(url, function () {
+                        $('#editTaskModal').modal('show');
+                    });
+                }
+            });
+
+            // AJAX for deleting a task
+            $('.delete-task').click(function () {
+                var url = $(this).data('url');
+                if (url) {
+                    $('#deleteTaskModal').load(url, function () {
+                        $('#deleteTaskModal').modal('show');
+                    });
+                }
+            });
+
+            // AJAX for adding a task
+            $('#addTaskButton').click(function () {
+                var url = "{% url 'add_task' %}";
+                if (url) {
+                    $('#addTaskModal').load(url, function () {
+                        $('#addTaskModal').modal('show');
+                    });
+                }
+            });
+
+            // AJAX for check task
+            $('input[type="checkbox"]').change(function () {
+                var url = $(this).data('url');
+                if (url) {
+                    $.ajax({
+                        type: 'POST',
+                        url: url,
+                        data: {csrfmiddlewaretoken: '{{ csrf_token }}'},
+                    });
+                }
+            });
+        });
+    </script>
+{% endblock %}
