@@ -1,71 +1,92 @@
 import json
-import os
+import tkinter as tk
+from tkinter import messagebox
+from tkinter import ttk
+from ttkthemes import ThemedTk
 
-# Функция для загрузки задач из файла
-def load_tasks():
-    if os.path.exists("tasks.json"):
-        with open("tasks.json", "r") as file:
-            tasks = json.load(file)
-        return tasks
-    else:
-        return []
+class TodoApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("ToDo List")
+        self.root.geometry("400x400")
 
-# Функция для сохранения задач в файл
-def save_tasks(tasks):
-    with open("tasks.json", "w") as file:
-        json.dump(tasks, file, indent=2)
+        # Загрузка задач из файла
+        self.tasks = self.load_tasks()
 
-# Функция для добавления новой задачи
-def add_task(tasks, task):
-    tasks.append({"task": task, "completed": False})
-    save_tasks(tasks)
-    print("Задача добавлена!")
+        # Создание стиля для кнопок
+        self.style = ttk.Style()
+        self.style.configure("TButton", padding=5, font=("Helvetica", 12))
 
-# Функция для вывода списка задач
-def show_tasks(tasks):
-    if not tasks:
-        print("Список задач пуст.")
-    else:
-        print("Список задач:")
-        for index, task in enumerate(tasks, start=1):
-            status = "Готово" if task["completed"] else "В процессе"
-            print(f"{index}. {task['task']} - {status}")
+        # Создание виджетов
+        self.task_entry = tk.Entry(root, width=40, font=("Helvetica", 12))
+        self.task_listbox = tk.Listbox(root, selectmode=tk.SINGLE, height=10, font=("Helvetica", 12))
+        self.task_listbox.bind("<Delete>", self.delete_task)
+        self.task_listbox.bind("<Return>", self.toggle_completion)
+        self.add_button = ttk.Button(root, text="Добавить", command=self.add_task, style="TButton")
+        self.show_button = ttk.Button(root, text="Показать задачи", command=self.show_tasks, style="TButton")
+        self.exit_button = ttk.Button(root, text="Выйти", command=root.quit, style="TButton")
 
-# Функция для отметки задачи как выполненной
-def complete_task(tasks, index):
-    if 1 <= index <= len(tasks):
-        tasks[index - 1]["completed"] = True
-        save_tasks(tasks)
-        print("Задача отмечена как выполненная!")
-    else:
-        print("Некорректный номер задачи.")
+        # Размещение виджетов
+        self.task_entry.pack(pady=10)
+        self.add_button.pack()
+        self.show_button.pack()
+        self.task_listbox.pack()
+        self.exit_button.pack()
 
-# Основная функция приложения
-def main():
-    tasks = load_tasks()
+    def load_tasks(self):
+        if not tk.messagebox.askyesno("Загрузка задач", "Хотите ли вы загрузить предыдущие задачи?"):
+            return []
+        try:
+            with open("tasks.json", "r") as file:
+                tasks = json.load(file)
+            return tasks
+        except FileNotFoundError:
+            return []
+        except json.JSONDecodeError:
+            messagebox.showerror("Ошибка", "Ошибка при загрузке задач из файла.")
+            return []
 
-    while True:
-        print("\n1. Добавить задачу")
-        print("2. Показать задачи")
-        print("3. Отметить задачу как выполненную")
-        print("4. Выйти")
+    def save_tasks(self):
+        with open("tasks.json", "w") as file:
+            json.dump(self.tasks, file, indent=2)
 
-        choice = input("Выберите действие (1/2/3/4): ")
-        os.system('clear')
-
-        if choice == "1":
-            task = input("Введите новую задачу: ")
-            add_task(tasks, task)
-        elif choice == "2":
-            show_tasks(tasks)
-        elif choice == "3":
-            index = int(input("Введите номер задачи, которую хотите отметить как выполненную: "))
-            complete_task(tasks, index)
-        elif choice == "4":
-            print("Выход из приложения. До свидания!")
-            break
+    def add_task(self):
+        new_task = self.task_entry.get()
+        if new_task:
+            self.tasks.append({"task": new_task, "completed": False})
+            self.save_tasks()
+            self.task_entry.delete(0, tk.END)  # Очистить поле ввода
+            messagebox.showinfo("Успех", "Задача добавлена успешно!")
         else:
-            print("Некорректный ввод. Пожалуйста, выберите действие снова.")
+            messagebox.showwarning("Внимание", "Введите текст задачи.")
+
+    def show_tasks(self):
+        self.task_listbox.delete(0, tk.END)
+        if not self.tasks:
+            messagebox.showinfo("Список задач", "Список задач пуст.")
+        else:
+            for index, task in enumerate(self.tasks, start=1):
+                status = "Готово" if task["completed"] else "В процессе"
+                self.task_listbox.insert(tk.END, f"{index}. {task['task']} - {status}")
+
+    def delete_task(self, event):
+        selected_index = self.task_listbox.curselection()
+        if selected_index:
+            confirmed = messagebox.askyesno("Удаление задачи", "Вы уверены, что хотите удалить эту задачу?")
+            if confirmed:
+                del self.tasks[selected_index[0]]
+                self.save_tasks()
+                self.show_tasks()
+
+    def toggle_completion(self, event):
+        selected_index = self.task_listbox.curselection()
+        if selected_index:
+            task = self.tasks[selected_index[0]]
+            task["completed"] = not task["completed"]
+            self.save_tasks()
+            self.show_tasks()
 
 if __name__ == "__main__":
-    main()
+    root = ThemedTk(theme="arc")  # Выберите тему: "arc", "plastik", "adapta", и другие
+    app = TodoApp(root)
+    root.mainloop()
